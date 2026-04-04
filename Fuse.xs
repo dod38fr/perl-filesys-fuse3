@@ -1259,38 +1259,6 @@ int _PLfuse_create(const char *file, mode_t mode, struct fuse_file_info *fi) {
 	return rv;
 }
 
-int _PLfuse_ftruncate(const char *file, off_t off, struct fuse_file_info *fi) {
-	int rv;
-#ifndef PERL_HAS_64BITINT
-	char *temp;
-#endif
-	FUSE_CONTEXT_PRE;
-	DEBUGf("ftruncate begin\n");
-	ENTER;
-	SAVETMPS;
-	PUSHMARK(SP);
-	XPUSHs(file ? sv_2mortal(newSVpv(file,0)) : &PL_sv_undef);
-#ifdef PERL_HAS_64BITINT
-	XPUSHs(sv_2mortal(newSViv(off)));
-#else
-	if (asprintf(&temp, "%llu", off) == -1)
-		croak("Memory allocation failure!");
-	XPUSHs(sv_2mortal(newSVpv(temp, 0)));
-	free(temp);
-#endif
-	XPUSHs(FH_GETHANDLE(fi));
-	PUTBACK;
-	rv = call_sv(MY_CXT.callback[33],G_SCALAR);
-	SPAGAIN;
-	rv = (rv ? POPi : 0);
-	FREETMPS;
-	LEAVE;
-	PUTBACK;
-	DEBUGf("ftruncate end: %i\n",rv);
-	FUSE_CONTEXT_POST;
-	return rv;
-}
-
 int _PLfuse_fgetattr(const char *file, struct stat *result,
                      struct fuse_file_info *fi) {
 	int rv;
