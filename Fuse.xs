@@ -101,8 +101,18 @@ enum callback_index {
   N_CALLBACKS
 };
 
+// ⚠️ This list must match the @otherargs list defined in Fuse.pm
+enum arg_index {
+  ARG_IDX_DEBUG,
+  ARG_IDX_THREADED,
+  ARG_IDX_MOUNTPOINT,
+  ARG_IDX_MOUNTOPTS,
+  ARG_IDX_NULLPATH_OK,
+  ARG_IDX_UTIMENS_AS_ARRAY,
+  N_FLAGS
+};
+
 #define MY_CXT_KEY "Fuse::_guts" XS_VERSION
-#define N_FLAGS 8
 
 typedef struct {
 	SV *callback[N_CALLBACKS];
@@ -1968,8 +1978,8 @@ perl_fuse_main(...)
 	}
 	memset(&fops, 0, sizeof(struct fuse_operations));
 	CODE:
-	debug = SvIV(ST(0));
-	MY_CXT.threaded = SvIV(ST(1));
+	debug = SvIV(ST(ARG_IDX_DEBUG));
+	MY_CXT.threaded = SvIV(ST(ARG_IDX_THREADED));
 	MY_CXT.handles = (HV*)(sv_2mortal((SV*)(newHV())));
 	if(MY_CXT.threaded) {
 #ifdef FUSE_USE_ITHREADS
@@ -1983,10 +1993,11 @@ perl_fuse_main(...)
 		MY_CXT.threaded = 0;
 #endif
 	}
-	mountpoint = SvPV_nolen(ST(2));
-	mountopts = SvPV_nolen(ST(3));
-	MY_CXT.nullpath_ok = SvIV(ST(4));
-	MY_CXT.utimens_as_array = SvIV(ST(5));
+	mountpoint = SvPV_nolen(ST(ARG_IDX_MOUNTPOINT));
+	mountopts = SvPV_nolen(ST(ARG_IDX_MOUNTOPTS));
+	MY_CXT.nullpath_ok = SvIV(ST(ARG_IDX_NULLPATH_OK));
+    MY_CXT.utimens_as_array = SvIV(ST(ARG_IDX_UTIMENS_AS_ARRAY));
+
 	for(i=0;i<N_CALLBACKS;i++) {
 		SV *var = ST(i+N_FLAGS);
 		/* allow symbolic references, or real code references. */

@@ -87,8 +87,11 @@ sub main {
 	my @subs = map {undef} @names;
 	my $tmp = 0;
 	my %mapping = map { $_ => $tmp++ } @names;
+
+    # ⚠️ @otherargs must match the arg_index enum defined in Fuse.xs
 	my @otherargs = qw(debug threaded mountpoint mountopts nullpath_ok
-			utimens_as_array nopath utime_omit_ok);
+                       utimens_as_array);
+
 	my %otherargs = (
 			  debug			=> 0,
 			  threaded		=> 0,
@@ -96,8 +99,6 @@ sub main {
 			  mountopts		=> '',
 			  nullpath_ok		=> 0,
 			  utimens_as_array	=> 0,
-			  nopath		=> 0, # TODO: gone from fuse3
-			  utime_omit_ok		=> 0,, # TODO: gone from fuse3
 			);
 	while(my $name = shift) {
 		my ($subref) = shift;
