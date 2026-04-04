@@ -64,19 +64,52 @@
 #endif
 
 /* Global Data */
+// ⚠️ This list must match the @names list defined in Fuse.pm
+enum callback_index {
+  CB_IDX_GETATTR,
+  CB_IDX_READLINK,
+  CB_IDX_MKNOD,
+  CB_IDX_MKDIR,
+  CB_IDX_UNLINK,
+  CB_IDX_RMDIR,
+  CB_IDX_SYMLINK,
+  CB_IDX_RENAME,
+  CB_IDX_LINK,
+  CB_IDX_CHMOD,
+  CB_IDX_CHOWN,
+  CB_IDX_TRUNCATE,
+  CB_IDX_OPEN,
+  CB_IDX_READ,
+  CB_IDX_WRITE,
+  CB_IDX_STATFS,
+  CB_IDX_FLUSH,
+  CB_IDX_RELEASE,
+  CB_IDX_FSYNC,
+  CB_IDX_SETXATTR,
+  CB_IDX_GETXATTR,
+  CB_IDX_LISTXATTR,
+  CB_IDX_REMOVEXATTR,
+  CB_IDX_OPENDIR,
+  CB_IDX_READDIR,
+  CB_IDX_RELEASEDIR,
+  CB_IDX_FSYNCDIR,
+  CB_IDX_INIT,
+  CB_IDX_DESTROY,
+  CB_IDX_ACCESS,
+  CB_IDX_CREATE,
+  CB_IDX_LOCK,
+  CB_IDX_UTIMENS,
+  CB_IDX_BMAP,
+  CB_IDX_IOCTL,
+  CB_IDX_POLL,
+  CB_IDX_WRITE_BUF,
+  CB_IDX_READ_BUF,
+  CB_IDX_FLOCK,
+  CB_IDX_FALLOCATE,
+  N_CALLBACKS
+};
 
 #define MY_CXT_KEY "Fuse::_guts" XS_VERSION
-#if FUSE_VERSION >= 29
-# if FUSE_FOUND_MICRO_VER >= 1
-#  define N_CALLBACKS 45
-# else /* FUSE_FOUND_MICRO_VER < 1 */
-#  define N_CALLBACKS 44
-# endif
-#elif FUSE_VERSION >= 28
-# define N_CALLBACKS 41
-#else /* FUSE_VERSION < 28 */
-# define N_CALLBACKS 38
-#endif
 #define N_FLAGS 8
 
 typedef struct {
@@ -90,6 +123,7 @@ typedef struct {
 	perl_mutex mutex;
 #endif
 	int utimens_as_array;
+	int nullpath_ok;
 } my_cxt_t;
 START_MY_CXT;
 
@@ -176,7 +210,7 @@ void S_fh_store_handle(pTHX_ pMY_CXT_ struct fuse_file_info *fi, SV *sv) {
 	}
 }
 
-int _PLfuse_getattr(const char *file, struct stat *result) {
+int _PLfuse_getattr(const char *file, struct stat *result, struct fuse_file_info *info) {
 	int rv;
 	FUSE_CONTEXT_PRE;
 	DEBUGf("getattr begin: %s\n",file);
@@ -185,7 +219,7 @@ int _PLfuse_getattr(const char *file, struct stat *result) {
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newSVpv(file,strlen(file))));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[0],G_ARRAY);
+	rv = call_sv(MY_CXT.callback[CB_IDX_GETATTR],G_ARRAY);
 	SPAGAIN;
 	if(rv != 13) {
 		if(rv > 1) {
@@ -230,7 +264,7 @@ int _PLfuse_readlink(const char *file,char *buf,size_t buflen) {
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[1],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_READLINK],G_SCALAR);
 	SPAGAIN;
 	if(!rv)
 		rv = -ENOENT;
@@ -252,39 +286,6 @@ int _PLfuse_readlink(const char *file,char *buf,size_t buflen) {
 	return rv;
 }
 
-int _PLfuse_getdir(const char *file, fuse_dirh_t dirh, fuse_dirfil_t dirfil) {
-	int prv, rv;
-	SV **swp;
-	FUSE_CONTEXT_PRE;
-	DEBUGf("getdir begin\n");
-	ENTER;
-	SAVETMPS;
-	PUSHMARK(SP);
-	XPUSHs(sv_2mortal(newSVpv(file,0)));
-	PUTBACK;
-	prv = call_sv(MY_CXT.callback[2],G_ARRAY);
-	SPAGAIN;
-	if(prv) {
-		/* Should yield the bottom of the current stack... */
-		swp = SP - prv + 1;
-		rv = POPi;
-		/* Sort of a hack to walk the stack in order, instead of reverse
-		 * order - trying to explain to potential users why they need to
-		 * reverse the order of this array would be confusing, at best. */
-		while (swp <= SP)
-			dirfil(dirh,SvPVx_nolen(*(swp++)),0,0);
-		SP -= prv - 1;
-	} else {
-		fprintf(stderr,"getdir() handler returned nothing!\n");
-		rv = -ENOSYS;
-	}
-	FREETMPS;
-	LEAVE;
-	PUTBACK;
-	DEBUGf("getdir end: %i\n",rv);
-	FUSE_CONTEXT_POST;
-	return rv;
-}
 
 int _PLfuse_mknod (const char *file, mode_t mode, dev_t dev) {
 	int rv;
@@ -297,7 +298,7 @@ int _PLfuse_mknod (const char *file, mode_t mode, dev_t dev) {
 	XPUSHs(sv_2mortal(newSViv(mode)));
 	XPUSHs(sv_2mortal(newSViv(dev)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[3],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_MKNOD],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -318,7 +319,7 @@ int _PLfuse_mkdir (const char *file, mode_t mode) {
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	XPUSHs(sv_2mortal(newSViv(mode)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[4],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_MKDIR],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -338,7 +339,7 @@ int _PLfuse_unlink (const char *file) {
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[5],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_UNLINK],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -358,7 +359,7 @@ int _PLfuse_rmdir (const char *file) {
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[6],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_RMDIR],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -379,7 +380,7 @@ int _PLfuse_symlink (const char *file, const char *new) {
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	XPUSHs(sv_2mortal(newSVpv(new,0)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[7],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_SYMLINK],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -390,7 +391,7 @@ int _PLfuse_symlink (const char *file, const char *new) {
 	return rv;
 }
 
-int _PLfuse_rename (const char *file, const char *new) {
+int _PLfuse_rename (const char *file, const char *new, unsigned int flags) {
 	int rv;
 	FUSE_CONTEXT_PRE;
 	DEBUGf("rename begin\n");
@@ -400,7 +401,7 @@ int _PLfuse_rename (const char *file, const char *new) {
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	XPUSHs(sv_2mortal(newSVpv(new,0)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[8],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_RENAME],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -421,7 +422,7 @@ int _PLfuse_link (const char *file, const char *new) {
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	XPUSHs(sv_2mortal(newSVpv(new,0)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[9],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_LINK],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -432,7 +433,7 @@ int _PLfuse_link (const char *file, const char *new) {
 	return rv;
 }
 
-int _PLfuse_chmod (const char *file, mode_t mode) {
+int _PLfuse_chmod (const char *file, mode_t mode, struct fuse_file_info *fi) {
 	int rv;
 	FUSE_CONTEXT_PRE;
 	DEBUGf("chmod begin\n");
@@ -442,7 +443,7 @@ int _PLfuse_chmod (const char *file, mode_t mode) {
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	XPUSHs(sv_2mortal(newSViv(mode)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[10],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_CHMOD],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -453,7 +454,7 @@ int _PLfuse_chmod (const char *file, mode_t mode) {
 	return rv;
 }
 
-int _PLfuse_chown (const char *file, uid_t uid, gid_t gid) {
+int _PLfuse_chown (const char *file, uid_t uid, gid_t gid, struct fuse_file_info *fi) {
 	int rv;
 	FUSE_CONTEXT_PRE;
 	DEBUGf("chown begin\n");
@@ -464,7 +465,7 @@ int _PLfuse_chown (const char *file, uid_t uid, gid_t gid) {
 	XPUSHs(sv_2mortal(newSViv(uid)));
 	XPUSHs(sv_2mortal(newSViv(gid)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[11],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_CHOWN],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -475,7 +476,7 @@ int _PLfuse_chown (const char *file, uid_t uid, gid_t gid) {
 	return rv;
 }
 
-int _PLfuse_truncate (const char *file, off_t off) {
+int _PLfuse_truncate (const char *file, off_t off, struct fuse_file_info *fi) {
 	int rv;
 #ifndef PERL_HAS_64BITINT
 	char *temp;
@@ -495,35 +496,13 @@ int _PLfuse_truncate (const char *file, off_t off) {
 	free(temp);
 #endif
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[12],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_TRUNCATE],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
 	LEAVE;
 	PUTBACK;
 	DEBUGf("truncate end: %i\n",rv);
-	FUSE_CONTEXT_POST;
-	return rv;
-}
-
-int _PLfuse_utime (const char *file, struct utimbuf *uti) {
-	int rv;
-	FUSE_CONTEXT_PRE;
-	DEBUGf("utime begin\n");
-	ENTER;
-	SAVETMPS;
-	PUSHMARK(SP);
-	XPUSHs(sv_2mortal(newSVpv(file,0)));
-	XPUSHs(sv_2mortal(newSViv(uti->actime)));
-	XPUSHs(sv_2mortal(newSViv(uti->modtime)));
-	PUTBACK;
-	rv = call_sv(MY_CXT.callback[13],G_SCALAR);
-	SPAGAIN;
-	rv = (rv ? POPi : 0);
-	FREETMPS;
-	LEAVE;
-	PUTBACK;
-	DEBUGf("utime end: %i\n",rv);
 	FUSE_CONTEXT_POST;
 	return rv;
 }
@@ -554,7 +533,7 @@ int _PLfuse_open (const char *file, struct fuse_file_info *fi) {
 
 	PUTBACK;
 	/* Open called with filename, flags */
-	rv = call_sv(MY_CXT.callback[14],G_ARRAY);
+	rv = call_sv(MY_CXT.callback[CB_IDX_OPEN],G_ARRAY);
 	SPAGAIN;
 	if(rv) {
 		if(rv > 1) {
@@ -608,7 +587,7 @@ int _PLfuse_read (const char *file, char *buf, size_t buflen, off_t off,
 #endif
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[15],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_READ],G_SCALAR);
 	SPAGAIN;
 	if(!rv)
 		rv = -ENOENT;
@@ -670,7 +649,7 @@ int _PLfuse_write (const char *file, const char *buf, size_t buflen, off_t off, 
 #endif
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[16],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_WRITE],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -689,7 +668,7 @@ int _PLfuse_statfs (const char *file, struct statvfs *st) {
 	SAVETMPS;
 	PUSHMARK(SP);
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[17],G_ARRAY);
+	rv = call_sv(MY_CXT.callback[CB_IDX_STATFS],G_ARRAY);
 	SPAGAIN;
 	DEBUGf("statfs got %i params\n",rv);
 	if(rv == 6 || rv == 7) {
@@ -736,7 +715,7 @@ int _PLfuse_flush (const char *file, struct fuse_file_info *fi) {
 	XPUSHs(file ? sv_2mortal(newSVpv(file,0)) : &PL_sv_undef);
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[18],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_FLUSH],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -772,7 +751,7 @@ int _PLfuse_release (const char *file, struct fuse_file_info *fi) {
 # endif
 #endif
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[19],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_RELEASE],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FH_RELEASEHANDLE(fi);
@@ -796,7 +775,7 @@ int _PLfuse_fsync (const char *file, int datasync, struct fuse_file_info *fi) {
 	XPUSHs(sv_2mortal(newSViv(flags)));
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[20],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_FSYNC],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -823,7 +802,7 @@ int _PLfuse_setxattr (const char *file, const char *name, const char *buf, size_
 	XPUSHs(sv_2mortal(newSVpvn(buf,buflen)));
 	XPUSHs(sv_2mortal(newSViv(flags)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[21],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_SETXATTR],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -848,7 +827,7 @@ int _PLfuse_getxattr (const char *file, const char *name, char *buf, size_t bufl
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	XPUSHs(sv_2mortal(newSVpv(name,0)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[22],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_GETXATTR],G_SCALAR);
 	SPAGAIN;
 	if(!rv)
 		rv = -ENOENT;
@@ -890,7 +869,7 @@ int _PLfuse_listxattr (const char *file, char *list, size_t size) {
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	PUTBACK;
-	prv = call_sv(MY_CXT.callback[23],G_ARRAY);
+	prv = call_sv(MY_CXT.callback[CB_IDX_LISTXATTR],G_ARRAY);
 	SPAGAIN;
 	if(!prv)
 		rv = -ENOENT;
@@ -955,7 +934,7 @@ int _PLfuse_removexattr (const char *file, const char *name) {
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	XPUSHs(sv_2mortal(newSVpv(name,0)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[24],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_REMOVEXATTR],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -976,7 +955,7 @@ int _PLfuse_opendir(const char *file, struct fuse_file_info *fi) {
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	fi->fh = 0; /* Ensure it starts with 0 - important if they don't set it */
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[25], G_ARRAY);
+	rv = call_sv(MY_CXT.callback[CB_IDX_OPENDIR], G_ARRAY);
 	SPAGAIN;
 	if (rv) {
 		if (rv > 1) {
@@ -994,7 +973,7 @@ int _PLfuse_opendir(const char *file, struct fuse_file_info *fi) {
 }
 
 int _PLfuse_readdir(const char *file, void *dirh, fuse_fill_dir_t dirfil,
-                    off_t off, struct fuse_file_info *fi) {
+                    off_t off, struct fuse_file_info *fi, enum fuse_readdir_flags flags) {
 	int prv = 0, rv;
 	SV *sv, **svp, **swp;
 	AV *av, *av2;
@@ -1019,7 +998,7 @@ int _PLfuse_readdir(const char *file, void *dirh, fuse_fill_dir_t dirfil,
 #endif
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	prv = call_sv(MY_CXT.callback[26],G_ARRAY);
+	prv = call_sv(MY_CXT.callback[CB_IDX_READDIR],G_ARRAY);
 	SPAGAIN;
 	if (prv) {
 		/* Should yield the bottom of the current stack... */
@@ -1033,7 +1012,7 @@ int _PLfuse_readdir(const char *file, void *dirh, fuse_fill_dir_t dirfil,
 			sv = *(swp++);
 			if (!SvROK(sv) && SvPOK(sv))
 			/* Just a bare SV (probably a string; hopefully a string) */
-				dirfil(dirh, SvPVx_nolen(sv), NULL, 0);
+				dirfil(dirh, SvPVx_nolen(sv), NULL, 0,0);
 			else if (SvROK(sv) && SvTYPE(av = (AV *)SvRV(sv)) == SVt_PVAV) {
 				if (av_len(av) >= 2) {
 					/* The third element of the array should be the args that
@@ -1067,7 +1046,11 @@ int _PLfuse_readdir(const char *file, void *dirh, fuse_fill_dir_t dirfil,
 				if (av_len(av) >= 1) {
 					char *entryname = SvPVx_nolen(*(av_fetch(av, 1, FALSE)));
 					off_t elemnum = SvNV(*(av_fetch(av, 0, FALSE)));
-					dirfil(dirh, entryname, st_filled ? &st : NULL, elemnum);
+					enum fuse_fill_dir_flags fill_flags =
+					    (st_filled && (flags & FUSE_READDIR_PLUS))
+					    ? FUSE_FILL_DIR_PLUS : 0;
+					dirfil(dirh, entryname, st_filled ? &st : NULL,
+					       elemnum, fill_flags);
 				}
 				if (st_filled) {
 					memset(&st, 0, sizeof(struct stat));
@@ -1100,7 +1083,7 @@ int _PLfuse_releasedir(const char *file, struct fuse_file_info *fi) {
 	XPUSHs(file ? sv_2mortal(newSVpv(file,0)) : &PL_sv_undef);
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[27], G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_RELEASEDIR], G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FH_RELEASEHANDLE(fi);
@@ -1124,7 +1107,7 @@ int _PLfuse_fsyncdir(const char *file, int datasync,
 	XPUSHs(sv_2mortal(newSViv(datasync)));
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[28], G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_FSYNCDIR], G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -1135,28 +1118,31 @@ int _PLfuse_fsyncdir(const char *file, int datasync,
 	return rv;
 }
 
-void *_PLfuse_init(struct fuse_conn_info *fc)
+void *_PLfuse_init(struct fuse_conn_info *fc, struct fuse_config *cfg)
 {
 	void *rv = NULL;
 	int prv;
 	FUSE_CONTEXT_PRE;
+	cfg->nullpath_ok = MY_CXT.nullpath_ok;
 	DEBUGf("init begin\n");
-	ENTER;
-	SAVETMPS;
-	PUSHMARK(SP);
-	PUTBACK;
-	prv = call_sv(MY_CXT.callback[29], G_SCALAR);
-	SPAGAIN;
-	if (prv) {
-		rv = POPs;
-		if (rv == &PL_sv_undef)
-			rv = NULL;
-		else
-			rv = SvREFCNT_inc((SV *)rv);
+	if (MY_CXT.callback[CB_IDX_INIT]) {
+		ENTER;
+		SAVETMPS;
+		PUSHMARK(SP);
+		PUTBACK;
+		prv = call_sv(MY_CXT.callback[CB_IDX_INIT], G_SCALAR);
+		SPAGAIN;
+		if (prv) {
+			rv = POPs;
+			if (rv == &PL_sv_undef)
+				rv = NULL;
+			else
+				rv = SvREFCNT_inc((SV *)rv);
+		}
+		FREETMPS;
+		LEAVE;
+		PUTBACK;
 	}
-	FREETMPS;
-	LEAVE;
-	PUTBACK;
 	DEBUGf("init end: %p\n", rv);
 	FUSE_CONTEXT_POST;
 	return rv;
@@ -1170,7 +1156,7 @@ void _PLfuse_destroy(void *private_data) {
 	PUSHMARK(SP);
 	XPUSHs(private_data ? (SV *)private_data : &PL_sv_undef);
 	PUTBACK;
-	call_sv(MY_CXT.callback[30], G_VOID);
+	call_sv(MY_CXT.callback[CB_IDX_DESTROY], G_VOID);
 	SPAGAIN;
 	if (private_data)
 		SvREFCNT_dec((SV *)private_data);
@@ -1191,7 +1177,7 @@ int _PLfuse_access(const char *file, int mask) {
 	XPUSHs(sv_2mortal(newSVpv(file,0)));
 	XPUSHs(sv_2mortal(newSViv(mask)));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[31], G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_ACCESS], G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -1227,7 +1213,7 @@ int _PLfuse_create(const char *file, mode_t mode, struct fuse_file_info *fi) {
 	/* All hashref things done */
 
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[32], G_ARRAY);
+	rv = call_sv(MY_CXT.callback[CB_IDX_CREATE], G_ARRAY);
 	SPAGAIN;
 	if (rv) {
 		if (rv > 1) {
@@ -1255,51 +1241,6 @@ int _PLfuse_create(const char *file, mode_t mode, struct fuse_file_info *fi) {
 	LEAVE;
 	PUTBACK;
 	DEBUGf("create end: %d\n",rv);
-	FUSE_CONTEXT_POST;
-	return rv;
-}
-
-int _PLfuse_fgetattr(const char *file, struct stat *result,
-                     struct fuse_file_info *fi) {
-	int rv;
-	FUSE_CONTEXT_PRE;
-	DEBUGf("fgetattr begin: %s\n",file);
-	ENTER;
-	SAVETMPS;
-	PUSHMARK(SP);
-	XPUSHs(file ? sv_2mortal(newSVpv(file,0)) : &PL_sv_undef);
-	XPUSHs(FH_GETHANDLE(fi));
-	PUTBACK;
-	rv = call_sv(MY_CXT.callback[34],G_ARRAY);
-	SPAGAIN;
-	if(rv != 13) {
-		if(rv > 1) {
-			fprintf(stderr,"inappropriate number of returned values from getattr\n");
-			rv = -ENOSYS;
-		} else if(rv)
-			rv = POPi;
-		else
-			rv = -ENOENT;
-	} else {
-		result->st_blocks = POPi;
-		result->st_blksize = POPi;
-		PULL_TIME(result, st_ctim, POPs);
-		PULL_TIME(result, st_mtim, POPs);
-		PULL_TIME(result, st_atim, POPs);
-		result->st_size = POPn;	// we pop double here to support files larger than 4Gb (long limit)
-		result->st_rdev = POPi;
-		result->st_gid = POPi;
-		result->st_uid = POPi;
-		result->st_nlink = POPi;
-		result->st_mode = POPi;
-		result->st_ino   = POPi;
-		result->st_dev = POPi;
-		rv = 0;
-	}
-	FREETMPS;
-	LEAVE;
-	PUTBACK;
-	DEBUGf("fgetattr end: %i\n",rv);
 	FUSE_CONTEXT_POST;
 	return rv;
 }
@@ -1347,7 +1288,7 @@ int _PLfuse_lock(const char *file, struct fuse_file_info *fi, int cmd,
 	XPUSHs(FH_GETHANDLE(fi));
 
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[35],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_LOCK],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	if (lockinfo && !rv) {
@@ -1373,7 +1314,7 @@ int _PLfuse_lock(const char *file, struct fuse_file_info *fi, int cmd,
 	return rv;
 }
 
-int _PLfuse_utimens(const char *file, const struct timespec tv[2]) {
+int _PLfuse_utimens(const char *file, const struct timespec tv[2], struct fuse_file_info *fi) {
 	int rv;
 	FUSE_CONTEXT_PRE;
 	DEBUGf("utimens begin\n");
@@ -1406,7 +1347,7 @@ int _PLfuse_utimens(const char *file, const struct timespec tv[2]) {
 		XPUSHs(tv ? sv_2mortal(newSVnv(tv[1].tv_sec + (tv[1].tv_nsec / 1000000000.0))) : &PL_sv_undef);
 	}
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[36],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_UTIMENS],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 	FREETMPS;
@@ -1438,7 +1379,7 @@ int _PLfuse_bmap(const char *file, size_t blocksize, uint64_t *idx) {
 	free(temp);
 #endif
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[37],G_ARRAY);
+	rv = call_sv(MY_CXT.callback[CB_IDX_BMAP],G_ARRAY);
 	SPAGAIN;
 	if (rv > 0 && rv < 3) {
 		if (rv == 2)
@@ -1484,7 +1425,7 @@ int _PLfuse_ioctl(const char *file, int cmd, void *arg,
 		XPUSHs(&PL_sv_undef);
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[39],G_ARRAY);
+	rv = call_sv(MY_CXT.callback[CB_IDX_IOCTL],G_ARRAY);
 	SPAGAIN;
 	if ((cmd & IOC_OUT) && (rv == 2)) {
 		sv = POPs;
@@ -1543,7 +1484,7 @@ int _PLfuse_poll(const char *file, struct fuse_file_info *fi,
 	XPUSHs(sv_2mortal(newSViv(*reventsp)));
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[40],G_ARRAY);
+	rv = call_sv(MY_CXT.callback[CB_IDX_POLL],G_ARRAY);
 	SPAGAIN;
 	if (rv > 1) {
 		*reventsp = POPi;
@@ -1616,7 +1557,7 @@ int _PLfuse_write_buf (const char *file, struct fuse_bufvec *buf, off_t off,
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
 
-	rv = call_sv(MY_CXT.callback[41], G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_WRITE_BUF], G_SCALAR);
 	SPAGAIN;
 	rv = rv ? POPi : -ENOENT;
 
@@ -1664,7 +1605,7 @@ int _PLfuse_read_buf (const char *file, struct fuse_bufvec **bufp, size_t size,
 	XPUSHs(FH_GETHANDLE(fi));
 	PUTBACK;
 
-	rv = call_sv(MY_CXT.callback[42], G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_READ_BUF], G_SCALAR);
 	SPAGAIN;
 	if (!rv)
 		rv = -ENOENT;
@@ -1750,7 +1691,7 @@ int _PLfuse_flock (const char *file, struct fuse_file_info *fi, int op) {
 	XPUSHs(sv_2mortal(newSViv(op)));
 
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[43],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_FLOCK],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 
@@ -1762,7 +1703,7 @@ int _PLfuse_flock (const char *file, struct fuse_file_info *fi, int op) {
 	return rv;
 }
 
-#if FUSE_FOUND_MICRO_VER >= 1
+#if FUSE_FOUND_MICRO_VER >= 1 || FUSE_FOUND_MAJOR_VER >= 3
 int _PLfuse_fallocate (const char *file, int mode, off_t offset, off_t length,
                        struct fuse_file_info *fi) {
 	int rv;
@@ -1793,7 +1734,7 @@ int _PLfuse_fallocate (const char *file, int mode, off_t offset, off_t length,
 #endif
 
 	PUTBACK;
-	rv = call_sv(MY_CXT.callback[44],G_SCALAR);
+	rv = call_sv(MY_CXT.callback[CB_IDX_FALLOCATE],G_SCALAR);
 	SPAGAIN;
 	rv = (rv ? POPi : 0);
 
@@ -1804,61 +1745,8 @@ int _PLfuse_fallocate (const char *file, int mode, off_t offset, off_t length,
 	FUSE_CONTEXT_POST;
 	return rv;
 }
-#endif /* FUSE_FOUND_MICRO_VER >= 1 */
+#endif /* FUSE_FOUND_MICRO_VER >= 1 || FUSE_FOUND_MAJOR_VER >= 3 */
 #endif /* FUSE_VERSION >= 29 */
-
-struct fuse_operations _available_ops = {
-.getattr		= _PLfuse_getattr,
-.readlink		= _PLfuse_readlink,
-.getdir			= _PLfuse_getdir,
-.mknod			= _PLfuse_mknod,
-.mkdir			= _PLfuse_mkdir,
-.unlink			= _PLfuse_unlink,
-.rmdir			= _PLfuse_rmdir,
-.symlink		= _PLfuse_symlink,
-.rename			= _PLfuse_rename,
-.link			= _PLfuse_link,
-.chmod			= _PLfuse_chmod,
-.chown			= _PLfuse_chown,
-.truncate		= _PLfuse_truncate,
-.utime			= _PLfuse_utime,
-.open			= _PLfuse_open,
-.read			= _PLfuse_read,
-.write			= _PLfuse_write,
-.statfs			= _PLfuse_statfs,
-.flush			= _PLfuse_flush,
-.release		= _PLfuse_release,
-.fsync			= _PLfuse_fsync,
-.setxattr		= _PLfuse_setxattr,
-.getxattr		= _PLfuse_getxattr,
-.listxattr		= _PLfuse_listxattr,
-.removexattr		= _PLfuse_removexattr,
-.opendir		= _PLfuse_opendir, 
-.readdir		= _PLfuse_readdir,
-.releasedir		= _PLfuse_releasedir,
-.fsyncdir		= _PLfuse_fsyncdir,
-.init			= _PLfuse_init,
-.destroy		= _PLfuse_destroy,
-.access			= _PLfuse_access,
-.create			= _PLfuse_create,
-.ftruncate		= _PLfuse_ftruncate,
-.fgetattr		= _PLfuse_fgetattr,
-.lock			= _PLfuse_lock,
-.utimens		= _PLfuse_utimens,
-.bmap			= _PLfuse_bmap,
-#if FUSE_VERSION >= 28
-.ioctl			= _PLfuse_ioctl,
-.poll			= _PLfuse_poll,
-#endif /* FUSE_VERSION >= 28 */
-#if FUSE_VERSION >= 29
-.write_buf		= _PLfuse_write_buf,
-.read_buf		= _PLfuse_read_buf,
-.flock			= _PLfuse_flock,
-#if FUSE_FOUND_MICRO_VER >= 1
-.fallocate		= _PLfuse_fallocate,
-#endif /* FUSE_FOUND_MICRO_VER >= 1 */
-#endif /* FUSE_VERSION >= 29 */
-};
 
 MODULE = Fuse		PACKAGE = Fuse
 PROTOTYPES: DISABLE
@@ -2136,11 +2024,11 @@ void
 perl_fuse_main(...)
 	PREINIT:
 	struct fuse_operations fops;
+	struct fuse *fuse_handle;
 	int i, debug;
 	char *mountpoint;
 	char *mountopts;
 	struct fuse_args args = FUSE_ARGS_INIT(0, NULL);
-	struct fuse_chan *fc;
 	dMY_CXT;
 	INIT:
 	if(items != N_CALLBACKS + N_FLAGS) {
@@ -2166,27 +2054,62 @@ perl_fuse_main(...)
 	}
 	mountpoint = SvPV_nolen(ST(2));
 	mountopts = SvPV_nolen(ST(3));
-#if FUSE_VERSION >= 28
-	fops.flag_nullpath_ok = SvIV(ST(4));
-#endif /* FUSE_VERSION >= 28 */
+	MY_CXT.nullpath_ok = SvIV(ST(4));
 	MY_CXT.utimens_as_array = SvIV(ST(5));
-#if FUSE_VERSION >= 29
-	fops.flag_nopath = SvIV(ST(6));
-	fops.flag_utime_omit_ok = SvIV(ST(7));
-#endif /* FUSE_VERSION >= 29 */
 	for(i=0;i<N_CALLBACKS;i++) {
 		SV *var = ST(i+N_FLAGS);
 		/* allow symbolic references, or real code references. */
 		if(SvOK(var) && (SvPOK(var) || (SvROK(var) && SvTYPE(SvRV(var)) == SVt_PVCV))) {
-			void **tmp1 = (void**)&_available_ops, **tmp2 = (void**)&fops;
-			/* Dirty hack, to keep anything from overwriting the
-			 * flag area with a pointer. There should never be
-			 * anything passed as 'junk', but this prevents
-			 * someone from doing it and screwing things up... */
-			if (i == 38)
-				continue;
-			tmp2[i] = tmp1[i];
-			MY_CXT.callback[i] = var;
+            // register user callback. This is where a mismatch
+            // between Fuse.pm:@names list and callback_index enum
+            // will spoil your fun
+            MY_CXT.callback[i] = var;
+
+            // Map Perl @names index to the correct fuse_operations
+            // field, if the callback was defined by user.
+			switch(i) {
+			case CB_IDX_GETATTR : fops.getattr          = _PLfuse_getattr; break;
+			case CB_IDX_READLINK : fops.readlink        = _PLfuse_readlink; break;
+			case CB_IDX_MKNOD : fops.mknod              = _PLfuse_mknod; break;
+			case CB_IDX_MKDIR : fops.mkdir              = _PLfuse_mkdir; break;
+			case CB_IDX_UNLINK : fops.unlink            = _PLfuse_unlink; break;
+			case CB_IDX_RMDIR : fops.rmdir              = _PLfuse_rmdir; break;
+			case CB_IDX_SYMLINK : fops.symlink          = _PLfuse_symlink; break;
+			case CB_IDX_RENAME : fops.rename            = _PLfuse_rename; break;
+			case CB_IDX_LINK : fops.link                = _PLfuse_link; break;
+			case CB_IDX_CHMOD : fops.chmod              = _PLfuse_chmod; break;
+			case CB_IDX_CHOWN : fops.chown              = _PLfuse_chown; break;
+			case CB_IDX_TRUNCATE : fops.truncate        = _PLfuse_truncate; break;
+			case CB_IDX_OPEN : fops.open                = _PLfuse_open; break;
+			case CB_IDX_READ : fops.read                = _PLfuse_read; break;
+			case CB_IDX_WRITE : fops.write              = _PLfuse_write; break;
+			case CB_IDX_STATFS : fops.statfs            = _PLfuse_statfs; break;
+			case CB_IDX_FLUSH : fops.flush              = _PLfuse_flush; break;
+			case CB_IDX_RELEASE : fops.release          = _PLfuse_release; break;
+			case CB_IDX_FSYNC : fops.fsync              = _PLfuse_fsync; break;
+			case CB_IDX_SETXATTR : fops.setxattr        = _PLfuse_setxattr; break;
+            case CB_IDX_GETXATTR : fops.getxattr        = _PLfuse_getxattr; break;
+			case CB_IDX_LISTXATTR : fops.listxattr      = _PLfuse_listxattr; break;
+			case CB_IDX_REMOVEXATTR : fops.removexattr  = _PLfuse_removexattr; break;
+			case CB_IDX_OPENDIR : fops.opendir          = _PLfuse_opendir; break;
+			case CB_IDX_READDIR : fops.readdir          = _PLfuse_readdir; break;
+			case CB_IDX_RELEASEDIR : fops.releasedir    = _PLfuse_releasedir; break;
+			case CB_IDX_FSYNCDIR : fops.fsyncdir        = _PLfuse_fsyncdir; break;
+			case CB_IDX_INIT : fops.init                = _PLfuse_init; break;
+			case CB_IDX_DESTROY : fops.destroy          = _PLfuse_destroy; break;
+			case CB_IDX_ACCESS : fops.access            = _PLfuse_access; break;
+			case CB_IDX_CREATE : fops.create            = _PLfuse_create; break;
+			case CB_IDX_LOCK : fops.lock                = _PLfuse_lock; break;
+			case CB_IDX_UTIMENS : fops.utimens          = _PLfuse_utimens; break;
+			case CB_IDX_BMAP : fops.bmap                = _PLfuse_bmap; break;
+			case CB_IDX_IOCTL : fops.ioctl              = _PLfuse_ioctl; break;
+			case CB_IDX_POLL : fops.poll                = _PLfuse_poll; break;
+			case CB_IDX_WRITE_BUF : fops.write_buf      = _PLfuse_write_buf; break;
+			case CB_IDX_READ_BUF : fops.read_buf        = _PLfuse_read_buf; break;
+			case CB_IDX_FLOCK : fops.flock              = _PLfuse_flock; break;
+			case CB_IDX_FALLOCATE : fops.fallocate      = _PLfuse_fallocate; break;
+			default: break;
+			}
 		} else if(SvOK(var)) {
 			croak("invalid callback (%i) passed to perl_fuse_main "
 			      "(%s is not a string, code ref, or undef).\n",
@@ -2214,16 +2137,21 @@ perl_fuse_main(...)
 		fuse_opt_free_args(&args);
 		croak("out of memory\n");
 	}
-	fc = fuse_mount(mountpoint,&args);
-	if (fc == NULL)
+	fuse_handle = fuse_new(&args, &fops, sizeof(fops), NULL);
+	if (fuse_handle == NULL)
+		croak("could not create fuse handle!\n");
+	if (fuse_mount(fuse_handle, mountpoint) != 0) {
+		fuse_destroy(fuse_handle);
 		croak("could not mount fuse filesystem!\n");
+	}
 #if !defined(USING_LIBREFUSE) && !defined(__OpenBSD__)
 	if(MY_CXT.threaded) {
-		fuse_loop_mt(fuse_new(fc,&args,&fops,sizeof(fops),NULL));
+		fuse_loop_mt(fuse_handle, 0);
 	} else
 #endif /* !defined(USING_LIBREFUSE) && !defined(__OpenBSD__) */
-		fuse_loop(fuse_new(fc,&args,&fops,sizeof(fops),NULL));
-	fuse_unmount(mountpoint,fc);
+		fuse_loop(fuse_handle);
+	fuse_unmount(fuse_handle);
+	fuse_destroy(fuse_handle);
 	fuse_opt_free_args(&args);
 
 #if FUSE_VERSION >= 28

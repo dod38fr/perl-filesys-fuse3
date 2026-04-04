@@ -1,6 +1,6 @@
 package Fuse;
 
-use 5.006;
+use v5.20;
 use strict;
 use warnings;
 use Errno;
@@ -73,31 +73,17 @@ use constant FUSE_IOCTL_RETRY		=> (1 << 2);
 use constant FUSE_IOCTL_MAX_IOV		=> 256;
 
 sub main {
-	my @names = qw(getattr readlink getdir mknod mkdir unlink rmdir symlink
-			rename link chmod chown truncate utime open read write
-			statfs flush release fsync setxattr getxattr listxattr
-			removexattr opendir readdir releasedir fsyncdir init
-			destroy access create ftruncate fgetattr lock utimens
-			bmap);
 	my ($fuse_vmajor, $fuse_vminor, $fuse_vmicro) = fuse_version();
 	my $fuse_version = $fuse_vmajor + ($fuse_vminor * 1.0 / 1_000) +
 		($fuse_vmicro * 1.0 / 1_000_000);
-	if ($fuse_version >= 2.008) {
-		# junk doesn't contain a function pointer, and hopefully
-		# never will; it's a "dead" zone in the struct
-		# fuse_operations where flag bits are declared. we don't
-		# need to concern ourselves with it, and it appears any
-		# arch with a 64 bit pointer will align everything to
-		# 8 bytes, making the question of pointer alignment for
-		# the later wrapper functions no big thing.
-		push(@names, qw/junk ioctl poll/);
-	}
-	if ($fuse_version >= 2.009) {
-		push(@names, qw/write_buf read_buf flock/);
-	}
-	if ($fuse_version >= 2.009001) {
-		push(@names, qw/fallocate/);
-	}
+    # ⚠️ @names must match the callback_index enum defined in Fuse.xs
+	my @names = qw(getattr readlink mknod mkdir unlink rmdir symlink
+			rename link chmod chown truncate open read write
+			statfs flush release fsync setxattr getxattr listxattr
+			removexattr opendir readdir releasedir fsyncdir init
+			destroy access create lock utimens
+			bmap ioctl poll write_buf read_buf flock fallocate);
+
 	my @subs = map {undef} @names;
 	my $tmp = 0;
 	my %mapping = map { $_ => $tmp++ } @names;
@@ -110,8 +96,8 @@ sub main {
 			  mountopts		=> '',
 			  nullpath_ok		=> 0,
 			  utimens_as_array	=> 0,
-			  nopath		=> 0,
-			  utime_omit_ok		=> 0,
+			  nopath		=> 0, # TODO: gone from fuse3
+			  utime_omit_ok		=> 0,, # TODO: gone from fuse3
 			);
 	while(my $name = shift) {
 		my ($subref) = shift;

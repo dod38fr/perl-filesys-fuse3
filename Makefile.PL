@@ -59,6 +59,8 @@ if ( $^O eq 'cygwin' ) {
     }
 }
 
+my $fuse = "fuse3";
+
 my $command;
 if ( can_run('pkg-config') ) {
     $command = 'pkg-config';
@@ -79,7 +81,7 @@ else {
     die "Cannot build. Please install pkg-config or the PkgConfig perl module before continuing.\n";
 }
 
-chomp(my $fusever = `$command --modversion fuse 2> /dev/null`);
+chomp(my $fusever = `$command --modversion $fuse 2> /dev/null`);
 # Required for refuse on NetBSD
 if (!$fusever && $^O eq 'netbsd') {
     chomp($fusever = `fusermount -V`);
@@ -133,10 +135,10 @@ if ($fusever && $fusever + 0 < 2.6) {
     warn "fuse version found: ", $fusever, "\n";
 }
 
-chomp(my $inc = `$command --cflags-only-I fuse 2> /dev/null`);
-chomp(my $libs = `$command --libs-only-L fuse 2> /dev/null`);
+chomp(my $inc = `$command --cflags-only-I $fuse 2> /dev/null`);
+chomp(my $libs = `$command --libs-only-L $fuse 2> /dev/null`);
 $libs .= ' ';
-chomp($libs .= `$command --libs-only-l fuse 2> /dev/null` || (($^O eq 'netbsd') ? '-lrefuse' : '-lfuse'));
+chomp($libs .= `$command --libs-only-l $fuse 2> /dev/null` || (($^O eq 'netbsd') ? '-lrefuse' : '-lfuse'));
 # Needed for Fuse on OS X 10.6, due to 10.6 and up always using the 64-bit
 # inode structs; unfortunately MacFuse doesn't just do the right thing
 # on its own. (Not applicable for OSXFUSE; it uses a new SONAME, so we
@@ -144,8 +146,8 @@ chomp($libs .= `$command --libs-only-l fuse 2> /dev/null` || (($^O eq 'netbsd') 
 if ($^O eq 'darwin' && (uname())[2] =~ /^1[01]\./) {
     $libs =~ s/-lfuse\b/-lfuse_ino64/;
 }
-chomp(my $def = '-Wall -DFUSE_USE_VERSION=26 ' . `$command --cflags-only-other fuse 2> /dev/null` || '-D_FILE_OFFSET_BITS=64');
-chomp($def .= `$command --libs-only-other fuse 2> /dev/null`);
+chomp(my $def = '-Wall -DFUSE_USE_VERSION=30 ' . `$command --cflags-only-other $fuse 2> /dev/null` || '-D_FILE_OFFSET_BITS=64');
+chomp($def .= `$command --libs-only-other $fuse 2> /dev/null`);
 $def .= ' -DPERL_HAS_64BITINT' if $Config{'use64bitint'};
 $def .= ' -DUSING_LIBREFUSE' if $libs =~ m{-lrefuse\b};
 

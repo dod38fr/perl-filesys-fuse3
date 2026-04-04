@@ -84,6 +84,9 @@ sub x_getdir {
     return (@files, 0);
 }
 
+# FUSE3 uses readdir instead of getdir
+sub x_readdir { x_getdir(@_) }
+
 sub x_open {
     my ($file) = fixup(shift);
     my ($mode) = shift;
@@ -199,6 +202,14 @@ sub x_chmod {
 sub x_truncate { return truncate(fixup(shift),shift) ? 0 : -$! ; }
 sub x_utime { return utime($_[1],$_[2],fixup($_[0])) ? 0:-$!; }
 
+# FUSE3 uses utimens instead of utime; times arrive as floats (seconds since epoch)
+sub x_utimens {
+    my ($file, $atime, $mtime) = @_;
+    $file = fixup($file);
+    return -ENOENT() unless -e $file;
+    return utime(int($atime), int($mtime), $file) ? 0 : -$!;
+}
+
 sub x_mkdir { my ($name, $perm) = @_; return 0 if mkdir(fixup($name),$perm); return -$!; }
 sub x_rmdir { return 0 if rmdir fixup(shift); return -$!; }
 
@@ -310,7 +321,7 @@ Fuse::main(
     'mountpoint'    => $mountpoint,
     'getattr'       => 'main::x_getattr',
     'readlink'      => 'main::x_readlink',
-    'getdir'        => 'main::x_getdir',
+    'readdir'       => 'main::x_readdir',
     'create'        => 'main::x_create',
     'mknod'         => 'main::x_mknod',
     'mkdir'         => 'main::x_mkdir',
@@ -322,7 +333,7 @@ Fuse::main(
     'chmod'         => 'main::x_chmod',
     'chown'         => 'main::x_chown',
     'truncate'      => 'main::x_truncate',
-    'utime'         => 'main::x_utime',
+    'utimens'       => 'main::x_utimens',
     'open'          => 'main::x_open',
     'release'       => 'main::x_release',
     'read'          => 'main::x_read',
