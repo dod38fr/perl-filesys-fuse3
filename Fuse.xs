@@ -50,14 +50,6 @@
 #ifdef USE_ITHREADS
 # ifdef I_PTHREAD
 #  define FUSE_USE_ITHREADS
-#  if (PERL_VERSION < 8) || (PERL_VERSION == 8 && PERL_SUBVERSION < 9)
-#    define tTHX PerlInterpreter*
-#    define STR_WITH_LEN(s)  ("" s ""), (sizeof(s)-1)
-#    define hv_fetchs(hv,key,lval) Perl_hv_fetch(aTHX_ hv, STR_WITH_LEN(key), lval)
-#    define dMY_CXT_INTERP(interp) \
-	SV *my_cxt_sv = *hv_fetchs(interp->Imodglobal, MY_CXT_KEY, TRUE); \
-	my_cxt_t *my_cxtp = INT2PTR(my_cxt_t*, SvUV(my_cxt_sv))
-#  endif
 # else
 #  warning "Sorry, I don't know how to handle ithreads on this architecture. Building non-threaded version"
 # endif
@@ -132,21 +124,12 @@ tTHX master_interp = NULL;
 
 #define CLONE_INTERP(parent) S_clone_interp(parent)
 tTHX S_clone_interp(tTHX parent) {
-#  if (PERL_VERSION < 10)
-	tTHX my_perl = parent;
-#endif
 	dMY_CXT_INTERP(parent);
 	if(MY_CXT.threaded) {
 		MUTEX_LOCK(&MY_CXT.mutex);
 		PERL_SET_CONTEXT(parent);
 		dTHX;
-#if (PERL_VERSION > 10) || (PERL_VERSION == 10 && PERL_SUBVERSION >= 1)
 		tTHX child = perl_clone(parent, CLONEf_CLONE_HOST | CLONEf_COPY_STACKS);
-#else
-		tTHX child = perl_clone(parent, CLONEf_CLONE_HOST | CLONEf_COPY_STACKS | CLONEf_KEEP_PTR_TABLE);
-		ptr_table_free(PL_ptr_table);
-		PL_ptr_table = NULL;
-#endif
 		MUTEX_UNLOCK(&MY_CXT.mutex);
 		return child;
 	}
@@ -627,12 +610,7 @@ int _PLfuse_write (const char *file, const char *buf, size_t buflen, off_t off, 
 	SAVETMPS;
 	PUSHMARK(SP);
 	XPUSHs(file ? sv_2mortal(newSVpv(file,0)) : &PL_sv_undef);
-#if (PERL_VERSION < 8) || (PERL_VERSION == 8 && PERL_SUBVERSION < 9)
-	sv = newSV(0);
-	sv_upgrade(sv, SVt_PV);
-#else
 	sv = newSV_type(SVt_PV);
-#endif
 	SvPV_set(sv, (char *)buf);
 	SvLEN_set(sv, 0);
 	SvCUR_set(sv, buflen);
@@ -1533,12 +1511,7 @@ int _PLfuse_write_buf (const char *file, struct fuse_bufvec *buf, off_t off,
 		(void) hv_store(bvhash, "flags", 5, sv, 0);
 		sv = &PL_sv_undef;
 		if (!(buf->buf[i].flags & FUSE_BUF_IS_FD)) {
-#if (PERL_VERSION < 8) || (PERL_VERSION == 8 && PERL_SUBVERSION < 9)
-			sv = newSV(0);
-			sv_upgrade(sv, SVt_PV);
-#else
 			sv = newSV_type(SVt_PV);
-#endif
 			SvPV_set(sv, (char *)buf->buf[i].mem);
 			SvLEN_set(sv, 0);
 			SvCUR_set(sv, buf->buf[i].size);
@@ -1769,33 +1742,14 @@ CLONE(...)
 		MY_CXT_CLONE;
 		tTHX parent = MY_CXT.self;
 		MY_CXT.self = my_perl;
-#if (PERL_VERSION < 10) || (PERL_VERSION == 10 && PERL_SUBVERSION <= 0)
-		/* CLONE entered without a pointer table, so we can't safely clone static data */
-		if(!PL_ptr_table) {
-			for(i=0;i<N_CALLBACKS;i++) {
-				MY_CXT.callback[i] = NULL;
-			}
-			MY_CXT.handles = newHV();
-		} else
-#endif
 		{
 			CLONE_PARAMS *clone_param;
-#if (PERL_VERSION > 13) || (PERL_VERSION == 13 && PERL_SUBVERSION >= 2)
 			clone_param = Perl_clone_params_new(parent, aTHX);
-#else
-			CLONE_PARAMS raw_param;
-			raw_param.flags = 0;
-			raw_param.proto_perl = parent;
-			raw_param.stashes = (AV*)sv_2mortal((SV*)newAV());
-			clone_param = &raw_param;
-#endif
 			for(i=0;i<N_CALLBACKS;i++) {
 				MY_CXT.callback[i] = sv_dup(MY_CXT.callback[i], clone_param);
 			}
 			MY_CXT.handles = (HV*)sv_dup((SV*)MY_CXT.handles, clone_param);
-#if (PERL_VERSION > 13) || (PERL_VERSION == 13 && PERL_SUBVERSION >= 2)
 			Perl_clone_params_del(clone_param);
-#endif
 		}
 #endif
 
@@ -1998,12 +1952,7 @@ fuse_buf_copy(...)
 			    SvTYPE((SV *)hv) != SVt_PVHV)
 				croak("Entry provided as part of bufvec was wrong!");
 			if (!(dst->buf[i].flags & FUSE_BUF_IS_FD)) {
-#if (PERL_VERSION < 8) || (PERL_VERSION == 8 && PERL_SUBVERSION < 9)
-				sv = newSV(0);
-				sv_upgrade(sv, SVt_PV);
-#else
 				sv = newSV_type(SVt_PV);
-#endif
 				SvPV_set(sv, (char *)dst->buf[i].mem);
 				SvLEN_set(sv, dst->buf[i].size);
 				SvCUR_set(sv, dst->buf[i].size);
