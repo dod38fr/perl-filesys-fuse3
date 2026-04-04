@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use test::helper qw($_real $_point);
 use Test::More;
-plan tests => 15;
+plan tests => 20;
 my ($data);
 chdir($_point);
 undef $/; # slurp it all
@@ -42,6 +42,18 @@ $data = <FILE>;
 close(FILE);
 is(length($data),10,"right amount read");
 is($data,"fribbingle","right data read");
+
+# overwrite file with shorter data
+ok(open(FILE,'>',"writefile"),"open write");
+ok(print(FILE "foobar"),"print");
+close(FILE);
+
+# fetch contents of file
+ok(open(FILE,"writefile"),"open read");
+$data = <FILE>;
+close(FILE);
+is(length($data),6,"right amount read");
+is($data,"foobar","right data read");
 
 # kill file
 unlink("writefile");
