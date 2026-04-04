@@ -508,9 +508,7 @@ int _PLfuse_open (const char *file, struct fuse_file_info *fi) {
 	fihash = newHV();
 	(void) hv_store(fihash, "direct_io",    9, newSViv(fi->direct_io),   0);
 	(void) hv_store(fihash, "keep_cache",  10, newSViv(fi->keep_cache),  0);
-#if FUSE_VERSION >= 28
 	(void) hv_store(fihash, "nonseekable", 11, newSViv(fi->nonseekable), 0);
-#endif
 	XPUSHs(sv_2mortal(newRV_noinc((SV*) fihash)));
 	/* All hashref things done */
 
@@ -534,10 +532,8 @@ int _PLfuse_open (const char *file, struct fuse_file_info *fi) {
 			fi->direct_io   = SvIV(*svp);
 		if ((svp = hv_fetch(fihash, "keep_cache",  10, 0)) != NULL)
 			fi->keep_cache  = SvIV(*svp);
-#if FUSE_VERSION >= 28
 		if ((svp = hv_fetch(fihash, "nonseekable", 11, 0)) != NULL)
  			fi->nonseekable = SvIV(*svp);
-#endif
 	}
 	FREETMPS;
 	LEAVE;
@@ -718,7 +714,6 @@ int _PLfuse_release (const char *file, struct fuse_file_info *fi) {
 	XPUSHs(file ? sv_2mortal(newSVpv(file,0)) : &PL_sv_undef);
 	XPUSHs(sv_2mortal(newSViv(flags)));
 	XPUSHs(FH_GETHANDLE(fi));
-#if FUSE_VERSION >= 29
 	XPUSHs(fi->flock_release ? sv_2mortal(newSViv(1)) : &PL_sv_undef);
 # ifdef PERL_HAS_64BITINT
 	XPUSHs(sv_2mortal(newSViv(fi->lock_owner)));
@@ -727,7 +722,6 @@ int _PLfuse_release (const char *file, struct fuse_file_info *fi) {
 		croak("Memory allocation failure!");
 	XPUSHs(sv_2mortal(newSVpv(temp, 0)));
 # endif
-#endif
 	PUTBACK;
 	rv = call_sv(MY_CXT.callback[CB_IDX_RELEASE],G_SCALAR);
 	SPAGAIN;
@@ -1184,9 +1178,7 @@ int _PLfuse_create(const char *file, mode_t mode, struct fuse_file_info *fi) {
 	fihash = newHV();
 	(void) hv_store(fihash, "direct_io",    9, newSViv(fi->direct_io),   0);
 	(void) hv_store(fihash, "keep_cache",  10, newSViv(fi->keep_cache),  0);
-#if FUSE_VERSION >= 28
 	(void) hv_store(fihash, "nonseekable", 11, newSViv(fi->nonseekable), 0);
-#endif
 	XPUSHs(sv_2mortal(newRV_noinc((SV*) fihash)));
 	/* All hashref things done */
 
@@ -1210,10 +1202,8 @@ int _PLfuse_create(const char *file, mode_t mode, struct fuse_file_info *fi) {
 			fi->direct_io   = SvIV(*svp);
 		if ((svp = hv_fetch(fihash, "keep_cache",  10, 0)) != NULL)
 			fi->keep_cache  = SvIV(*svp);
-#if FUSE_VERSION >= 28
 		if ((svp = hv_fetch(fihash, "nonseekable", 11, 0)) != NULL)
 			fi->nonseekable = SvIV(*svp);
-#endif
 	}
 	FREETMPS;
 	LEAVE;
@@ -1376,7 +1366,6 @@ int _PLfuse_bmap(const char *file, size_t blocksize, uint64_t *idx) {
 	return rv;
 }
 
-#if FUSE_VERSION >= 28
 
 # ifndef __linux__
 #  define _IOC_SIZE(n) IOCPARM_LEN(n)
@@ -1476,9 +1465,7 @@ int _PLfuse_poll(const char *file, struct fuse_file_info *fi,
 	FUSE_CONTEXT_POST;
 	return rv;
 }
-#endif /* FUSE_VERSION >= 28 */
 
-#if FUSE_VERSION >= 29
 int _PLfuse_write_buf (const char *file, struct fuse_bufvec *buf, off_t off,
                        struct fuse_file_info *fi) {
 	int rv, i;
@@ -1719,7 +1706,6 @@ int _PLfuse_fallocate (const char *file, int mode, off_t offset, off_t length,
 	return rv;
 }
 #endif /* FUSE_FOUND_MICRO_VER >= 1 || FUSE_FOUND_MAJOR_VER >= 3 */
-#endif /* FUSE_VERSION >= 29 */
 
 MODULE = Fuse		PACKAGE = Fuse
 PROTOTYPES: DISABLE
@@ -1766,9 +1752,7 @@ fuse_get_context()
 		(void) hv_store(hash, "pid",   3, newSViv(fc->pid), 0);
 		if (fc->private_data)
 			(void) hv_store(hash, "private", 7, fc->private_data, 0);
-#if FUSE_VERSION >= 28
 		(void) hv_store(hash, "umask", 5, newSViv(fc->umask), 0);
-#endif /* FUSE_VERSION >= 28 */
 		RETVAL = newRV_noinc((SV*)hash);
 	} else {
 		XSRETURN_UNDEF;
@@ -1808,7 +1792,6 @@ XATTR_REPLACE()
 	OUTPUT:
 	RETVAL
 
-#if FUSE_VERSION >= 29
 
 #ifdef __linux__
 
@@ -1967,7 +1950,6 @@ fuse_buf_copy(...)
 	OUTPUT:
 	RETVAL
 
-#endif /* FUSE_VERSION >= 29 */
 
 void
 perl_fuse_main(...)
@@ -2103,7 +2085,6 @@ perl_fuse_main(...)
 	fuse_destroy(fuse_handle);
 	fuse_opt_free_args(&args);
 
-#if FUSE_VERSION >= 28
 
 void
 pollhandle_destroy(...)
@@ -2133,4 +2114,3 @@ notify_poll(...)
     OUTPUT:
 	RETVAL
 
-#endif
