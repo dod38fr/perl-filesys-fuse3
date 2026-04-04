@@ -128,7 +128,7 @@ tTHX S_clone_interp(tTHX parent) {
 
 #undef DEBUGf
 #if 0
-#define DEBUGf(f, a...) fprintf(stderr, "%s:%d (%i): " f,__BASE_FILE__,__LINE__,sp-PL_stack_base ,##a )
+#define DEBUGf(f, a...) fprintf(stderr, "%s:%d (%li): " f,__BASE_FILE__,__LINE__,sp-PL_stack_base ,##a )
 #else
 #define DEBUGf(a...)
 #endif
@@ -623,7 +623,7 @@ int _PLfuse_read (const char *file, char *buf, size_t buflen, off_t off,
 				rv = 0;
 			}
 			if(rv > buflen)
-				croak("read() handler returned more than buflen! (%i > %i)",rv,buflen);
+				croak("read() handler returned more than buflen! (%i > %zu)",rv,buflen);
 			if(rv)
 				memcpy(buf,SvPV_nolen(mysv),rv);
 		}
