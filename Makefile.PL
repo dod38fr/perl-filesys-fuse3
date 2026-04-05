@@ -171,35 +171,30 @@ $def .= ' -DFUSE_FOUND_MINOR_VER=' . $minor;
 $def .= ' -DFUSE_FOUND_MICRO_VER=' . $micro;
 
 WriteMakefile(
-    'NAME'          => 'Fuse',
-    'VERSION_FROM'  => 'Fuse.pm', # finds $VERSION
+    'NAME'          => 'Filesys::Fuse3',
+    'VERSION_FROM'  => 'Fuse3.pm', # finds $VERSION
     'PREREQ_PM'     => { # e.g., Module::Name => 1.1
         'Lchown'            => 0,
         'Filesys::Statvfs'  => 0,
         'Unix::Mknod'       => 0,
     },
-    ($] >= 5.005 ?  ## Add these new keywords supported since 5.005
-       (ABSTRACT_FROM   => 'Fuse.pm', # retrieve abstract from module
-        AUTHOR          => 'Mark Glines <mark@glines.org>') : ()),
-    ($ExtUtils::MakeMaker::VERSION < 6.3002 ? () : (
-        'LICENSE' => 'LGPL_2_1',
-    )),
-    ($ExtUtils::MakeMaker::VERSION < 6.46 ? () : (
-        META_MERGE => {
-            resources => {
-                license => 'http://www.gnu.org/licenses/lgpl-2.1.html',
-                bugtracker => 'https://rt.cpan.org/Public/Dist/Display.html?Name=Fuse',
-                repository => 'http://github.com/dpavlin/perl-fuse'
-            },
-        })
-    ),
+    ABSTRACT_FROM   => 'Fuse3.pm', # retrieve abstract from module
+    AUTHOR          => 'Dominique Dumont <domi.dumont@free.fr>',
+    'LICENSE' => 'LGPL_2_1',
+    META_MERGE => {
+        resources => {
+            license => 'http://www.gnu.org/licenses/lgpl-2.1.html',
+            bugtracker => 'http://github.com/dod38fr/perl-fuse3/issues',
+            repository => 'http://github.com/dod38fr/perl-fuse3'
+        },
+    },
     'LIBS'          => $libs, # e.g., '-lm'
     'DEFINE'        => $def, # e.g., '-DHAVE_SOMETHING'
     'OPTIMIZE'      => '-g -ggdb',
     # Insert -I. if you add *.h files later:
     'INC'           => $inc, # e.g., '-I/usr/include/other'
     # Un-comment this if you add C files to link with later:
-    'OBJECT'        => 'Fuse$(OBJ_EXT)', # link all the C files too
+    'OBJECT'        => 'Fuse3$(OBJ_EXT)', # link all the C files too
 );
 
 sub MY::postamble {
@@ -207,18 +202,13 @@ sub MY::postamble {
 
 cpan:
 	make clean
-	rm -f Fuse-*.tar.gz
+	rm -f Filesys-Fuse3-*.tar.gz
 	perl Makefile.PL
 	make dist
 	make disttest
 	@echo
-	@echo -n "Upload" Fuse-*.tar.gz "to CPAN? [y/N]:"
-	@read upload && test "$$upload" == "y" && cpan-upload -verbose Fuse-*.tar.gz
-
-
-
-sf:
-	svn2cvs.pl file:///home/dpavlin/private/svn/fuse/perl-llin :ext:dpavlin@fuse.cvs.sourceforge.net:/cvsroot/fuse perl
+	@echo -n "Upload" Filesys-Fuse3-*.tar.gz "to CPAN? [y/N]:"
+	@read upload && test "$$upload" == "y" && cpan-upload -verbose Filesys-Fuse3-*.tar.gz
 
 MAKE_MORE
 };

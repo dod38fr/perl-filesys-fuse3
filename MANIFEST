@@ -1,7 +1,7 @@
 AUTHORS
 Changes
-Fuse.pm
-Fuse.xs
+Fuse3.pm
+Fuse3.xs
 Makefile.PL
 MANIFEST
 README.md

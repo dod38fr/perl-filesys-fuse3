@@ -9,7 +9,7 @@ use threads::shared;
 use Carp;
 local $SIG{'__WARN__'} = \&Carp::cluck;
 
-use Fuse qw(:all);
+use Filesys::Fuse3 qw(:all);
 use Fcntl qw(:mode);
 use POSIX;
 use IO::Poll qw(POLLIN);
@@ -177,7 +177,7 @@ sub fsel_producer {
     }
 }
 
-croak("Fuse doesn't have poll") unless Fuse::fuse_version() >= 2.8;
+croak("Filesys::Fuse3 doesn't have poll") unless Filesys::Fuse3::fuse_version() >= 2.8;
 
 my %fuseargs = (
     'getattr'   => 'main::fsel_getattr',
@@ -190,7 +190,7 @@ my %fuseargs = (
 
 GetOptions(
     'use-threads'       => sub {
-        print STDERR "Warning: Fuse currently has bugs related to threading which may cause misbehavior\n";
+        print STDERR "Warning: Filesys::Fuse3 currently has bugs related to threading which may cause misbehavior\n";
         $fuseargs{'threaded'} = 1;
     },
     'debug'             => sub {
@@ -202,7 +202,7 @@ $fuseargs{'mountpoint'} = $ARGV[0];
 
 my $thread = threads->create(\&fsel_producer);
 
-Fuse::main(%fuseargs);
+Filesys::Fuse3::main(%fuseargs);
 
 $thread->kill('KILL');
 $thread->join();

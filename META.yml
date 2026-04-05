@@ -1,8 +1,8 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Fuse
+name:         Filesys::Fuse3
 version:      0.07_3
-version_from: Fuse.pm
+version_from: Fuse3.pm
 installdirs:  site
 requires:
 

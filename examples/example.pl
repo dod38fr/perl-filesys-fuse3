@@ -4,7 +4,7 @@ use strict;
 use Data::Dumper;
 
 #use blib;
-use Fuse qw(fuse_get_context);
+use Filesys::Fuse3 qw(fuse_get_context);
 use POSIX qw(ENOENT EISDIR EINVAL);
 
 my (%files) = (
@@ -57,7 +57,7 @@ sub e_getattr {
 	return ($dev,$ino,$modes,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks);
 }
 
-sub e_getdir {
+sub e_readdir {
 	# return as many text filenames as you like, followed by the retval.
 	print((scalar keys %files)."\n");
 	return (keys %files),0;
@@ -101,10 +101,10 @@ sub e_statfs { return 255, 1, 1, 1, 1, 2 }
 # re-run this script.  Hence the funky semantics.
 my ($mountpoint) = "";
 $mountpoint = shift(@ARGV) if @ARGV;
-Fuse::main(
+Filesys::Fuse3::main(
 	mountpoint=>$mountpoint,
 	getattr=>"main::e_getattr",
-	getdir =>"main::e_getdir",
+	readdir =>"main::e_readdir",
 	open   =>"main::e_open",
 	statfs =>"main::e_statfs",
 	read   =>"main::e_read",

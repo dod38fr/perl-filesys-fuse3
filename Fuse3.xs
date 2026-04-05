@@ -1717,7 +1717,7 @@ int _PLfuse_fallocate (const char *file, int mode, off_t offset, off_t length,
 }
 #endif /* FUSE_FOUND_MICRO_VER >= 1 || FUSE_FOUND_MAJOR_VER >= 3 */
 
-MODULE = Fuse		PACKAGE = Fuse
+MODULE = Filesys::Fuse3		PACKAGE = Filesys::Fuse3
 PROTOTYPES: DISABLE
 
 BOOT:
@@ -1962,7 +1962,7 @@ fuse_buf_copy(...)
 
 
 void
-perl_fuse_main(...)
+perl_fuse3_main(...)
 	PREINIT:
 	struct fuse_operations fops;
 	struct fuse *fuse_handle;

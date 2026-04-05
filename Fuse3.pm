@@ -1,4 +1,4 @@
-package Fuse;
+package Filesys::Fuse3;
 
 use v5.20;
 use strict;
@@ -17,7 +17,7 @@ our @ISA = qw(Exporter DynaLoader);
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 
-# This allows declaration	use Fuse ':all';
+# This allows declaration	use Filesys::Fuse3 ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 our %EXPORT_TAGS = (
@@ -65,7 +65,7 @@ sub AUTOLOAD {
     goto &$AUTOLOAD;
 }
 
-bootstrap Fuse $VERSION;
+bootstrap Filesys::Fuse3 $VERSION;
 
 use constant FUSE_IOCTL_COMPAT		=> (1 << 0);
 use constant FUSE_IOCTL_UNRESTRICTED	=> (1 << 1);
@@ -105,7 +105,7 @@ sub main {
 		if(exists($otherargs{$name})) {
 			$otherargs{$name} = $subref;
 		} else {
-			croak 'Usage: Fuse::main(getattr => "main::my_getattr", ...)' unless $subref;
+			croak 'Usage: Filesys::Fuse3::main(getattr => "main::my_getattr", ...)' unless $subref;
 			if (exists $mapping{$name}) {
 				$subs[$mapping{$name}] = $subref;
 			}
@@ -133,7 +133,7 @@ sub main {
 			$otherargs{threaded} = 0;
 		}
 	}
-	perl_fuse_main(@otherargs{@otherargs},@subs);
+	perl_fuse3_main(@otherargs{@otherargs},@subs);
 }
 
 sub fuse_buf_size {
@@ -144,17 +144,18 @@ sub fuse_buf_size {
 # Autoload methods go after =cut, and are processed by the autosplit program.
 
 1;
+
 __END__
 
 =head1 NAME
 
-Fuse - write filesystems in Perl using FUSE
+Filesys::Fuse3 - write filesystems in Perl using Fuse3
 
 =head1 SYNOPSIS
 
-  use Fuse;
+  use Filesys::Fuse3;
 
-  Fuse::main(
+  Filesys::Fuse3::main(
       mountpoint => '/mnt/my_fs',
       threaded   => 0,
       debug      => 1,
@@ -199,7 +200,7 @@ This will export XATTR_CREATE and XATTR_REPLACE.
 
 =head2 FUNCTIONS
 
-=head3 Fuse::main
+=head3 Filesys::Fuse3::main
 
 Takes arguments in the form of hash key=>value pairs.  There are
 many valid keys.  Most of them correspond with names of callback
@@ -255,7 +256,7 @@ threads::shared.)
 
 =item nullpath_ok => boolean
 
-This flag tells Fuse to not pass paths for functions that operate on file
+This flag tells Filesys::Fuse3 to not pass paths for functions that operate on file
 or directory handles. This will yield empty path parameters for functions
 including read, write, flush, release, fsync, readdir, releasedir,
 fsyncdir, truncate, fgetattr and lock. If you use this, you must return
@@ -296,37 +297,37 @@ Only effective on Fuse 2.9 and up.
 
 =back
 
-=head3 Fuse::fuse_get_context
+=head3 Filesys::Fuse3::fuse_get_context
  
- use Fuse 'fuse_get_context';
+ use Filesys::Fuse3 'fuse_get_context';
 
  my $caller_uid = fuse_get_context()->{uid};
  my $caller_gid = fuse_get_context()->{gid};
  my $caller_pid = fuse_get_context()->{pid};
  
-Access context information about the current Fuse operation. 
+Access context information about the current Filesys::Fuse3 operation.
 
-=head3 Fuse::fuse_version
+=head3 Filesys::Fuse3::fuse_version
 
-Indicates the Fuse version in use; more accurately, indicates the version
-of the Fuse API in use at build time. If called in scalar context, the
-version will be returned as a decimal value; i.e., for Fuse API v2.6, will
+Indicates the B<fuse> version in use; more accurately, indicates the version
+of the B<fuse> API in use at build time. If called in scalar context, the
+version will be returned as a decimal value; i.e., for B<fuse> API v2.6, will
 return "2.6". If called in array context, an array will be returned,
-containing the major, minor and micro version numbers of the Fuse API
+containing the major, minor and micro version numbers of the B<fuse> API
 it was built against.
 
-=head3 Fuse::fuse_buf_size
+=head3 Filesys::Fuse3::fuse_buf_size
 
 Computes the total size of a buffer vector. Applicable for C<read_buf>
 and C<write_buf> operations.
 
-=head3 Fuse::fuse_buf_copy
+=head3 Filesys::Fuse3::fuse_buf_copy
 
 Copies data from one buffer vector to another. Primarily useful if a
 buffer vector contains multiple, fragmented chunks or if it contains an
 FD buffer instead of a memory buffer. Applicable for C<write_buf>.
 
-=head3 Fuse::notify_poll
+=head3 Filesys::Fuse3::notify_poll
 
 Only available if the Fuse module is built against libfuse 2.8 or later.
 Use fuse_version() to determine if this is the case. Calling this function
@@ -343,7 +344,7 @@ filesystem server program may segfault, or worse, if you feed things to
 this function which it is not supposed to receive. If you do anyway, we
 take no responsibility for whatever Bad Things(tm) may happen.
 
-=head3 Fuse::pollhandle_destroy
+=head3 Filesys::Fuse3::pollhandle_destroy
 
 Only available if the Fuse module is built against libfuse 2.8 or later.
 Use fuse_version() to determine if this is the case. This function destroys
@@ -523,7 +524,7 @@ and O_SYNC, constants you can import from POSIX), fileinfo hash reference.
 Returns an errno, a file handle (optional).
 
 No creation, or truncation flags (O_CREAT, O_EXCL, O_TRUNC) will be passed to open().
-The fileinfo hash reference contains flags from the Fuse open call which may be modified by the module. The only fields presently supported are:
+The fileinfo hash reference contains flags from the B<fuse> open call which may be modified by the module. The only fields presently supported are:
  direct_io (version 2.4 onwards)
  keep_cache (version 2.4 onwards)
  nonseekable (version 2.8 onwards)
@@ -607,11 +608,11 @@ and the extended attribute doesn't exist, this should fail with - ENOATTR.
 XATTR_CREATE and XATTR_REPLACE are provided by this module, but not exported
 by default. To import them:
 
-    use Fuse ':xattr';
+    use Filesys::Fuse3 ':xattr';
 
 or:
 
-    use Fuse ':all';
+    use Filesys::Fuse3 ':all';
 
 =head3 getxattr
 
@@ -757,7 +758,7 @@ times are passed as "numeric" (internally these are typically represented
 as "double"), so the sub-second portion is represented as fractions of a
 second. If you want times passed as arrays instead of floating point
 values, for higher precision, you should pass the C<utimens_as_array> option
-to C<Fuse::main>.
+to C<Filesys::Fuse3::main>.
 
 Note that if this call is implemented, it overrides utime() ALWAYS.
 
@@ -892,21 +893,25 @@ There are a few example scripts in the examples/ subdirectory.  These are:
 
 =back
 
-=head1 THE "FUSE" NAMESPACE
+=head1 BUGS
 
-Additional filesystems using Fuse are released on CPAN under
-L<the Fuse:: namespace|https://metacpan.org/search?q=FUSE>.
-It includes modules like L<Fuse::DBI> which allows
-you to mount database as file system, and L<Fuse::PDF>, a filesystem
-embedded in a PDF document.
+=over 4
 
+=item *
+
+fuse3 C<copy_file_range>, C<lseek>, C<statx> callbacks are not
+implemented.
+
+=back
 
 =head1 AUTHOR
 
-Mark Glines, E<lt>mark@glines.orgE<gt>
+Original Fuse author: Mark Glines, E<lt>mark@glines.orgE<gt>.
+
+Ported to fuse3 by Dominique Dumont,  E<lt>domi.dumont@free.fr<gt>
 
 =head1 SEE ALSO
 
-L<perl>, the L<FUSE documentation|http://fuse.sourceforge.net>.
+L<perl>, the L<FUSE documentation|https://libfuse.github.io/doxygen/index.html>.
 
 =cut

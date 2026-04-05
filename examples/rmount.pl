@@ -4,7 +4,7 @@
 use strict;
 use Net::SSH 'sshopen2';
 use IPC::Open2;
-use Fuse;
+use Filesys::Fuse3;
 use Data::Dumper;
 
 my $port; if($ARGV[-1]=~/^--/){ $port = pop(@ARGV); $port =~ s/--port=//; }
@@ -77,7 +77,7 @@ sub netlink {
 	}
 }
 
-Fuse::main(%args);
+Filesys::Fuse3::main(%args);
 
 netlink("bye");
 close(READER);

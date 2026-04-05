@@ -16,7 +16,7 @@ use threads::shared;
 use Carp;
 local $SIG{'__WARN__'} = \&Carp::cluck;
 
-use Fuse qw(:all);
+use Filesys::Fuse3 qw(:all);
 use Fcntl qw(:mode);
 use POSIX;
 
@@ -173,9 +173,9 @@ sub fioc_ioctl {
     return -&EINVAL;
 }
 
-croak("Fuse doesn't have ioctl") unless Fuse::fuse_version() >= 2.8;
+croak("Filesys::Fuse3 doesn't have ioctl") unless Filesys::Fuse3::fuse_version() >= 2.8;
 
-Fuse::main(
+Filesys::Fuse3::main(
     'mountpoint' => $ARGV[0],
     'getattr'   => 'main::fioc_getattr',
     'readdir'   => 'main::fioc_readdir',

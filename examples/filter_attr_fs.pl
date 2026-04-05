@@ -7,7 +7,7 @@
 use strict;
 #use blib;
 
-use Fuse;
+use Filesys::Fuse3;
 use File::ExtAttr ':all';
 use IO::File;
 use POSIX qw(ENOENT ENOSYS EEXIST EPERM O_RDONLY O_RDWR O_APPEND O_CREAT O_ACCMODE);
@@ -255,7 +255,7 @@ if (@ARGV) {
 }
 
 # Start up FUSE
-Fuse::main(
+Filesys::Fuse3::main(
 	mountpoint=>$mountpoint,
 #	debug   => 1,
 	getattr =>"main::x_getattr",

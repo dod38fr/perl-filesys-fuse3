@@ -1,4 +1,4 @@
-Fuse Perl bindings
+Filesys::Fuse3 Perl bindings
 ==================
 
 This module lets you implement filesystems in Perl, through the
@@ -6,9 +6,9 @@ This module lets you implement filesystems in Perl, through the
 kernel/lib interface.
 
 ```perl
-  use Fuse;
+  use Filesys::Fuse3;
 
-  Fuse::main(
+  Filesys::Fuse3::main(
       mountpoint => '/mnt/my_fs',
       threaded   => 0,
       debug      => 1,
@@ -23,7 +23,7 @@ kernel/lib interface.
   );
 ```
 
-See [Fuse's main documentation](https://metacpan.org/pod/distribution/Fuse/Fuse.pm)
+See [Filesys::Fuse3's main documentation](https://metacpan.org/pod/distribution/Filesys/Fuse3/Fuse3.pm)
 for more details.
 
 #### Installation ####
@@ -56,10 +56,10 @@ If you intend to use FUSE in threaded mode, you need a version of perl
 compiled with USE_ITHREADS. Then, you need to use threads and
 threads::shared.
 
-After installing the external libraries, you can install the Fuse module
+After installing the external libraries, you can install the Filesys::Fuse3 module
 using you favorite CPAN tool. For example:
 
-    cpanm Fuse
+    cpanm Filesys::Fuse3
 
 Or manually, by downloading, unpacking and typing:
 

@@ -43,7 +43,7 @@ eval {
 };
 
 use blib;
-use Fuse;
+use Filesys::Fuse3;
 use IO::File;
 use POSIX qw(ENOTDIR ENOENT ENOSYS EEXIST EPERM O_RDONLY O_RDWR O_APPEND O_CREAT setsid);
 use Fcntl qw(S_ISBLK S_ISCHR S_ISFIFO SEEK_SET S_ISREG S_ISFIFO S_IMODE S_ISCHR S_ISBLK S_ISSOCK);
@@ -148,15 +148,15 @@ sub x_write_buf {
     return -ENOSYS() unless open(FILE,'+<',$file);
     # If by some chance we get a non-contiguous buffer, or an FD-based
     # buffer (or both!), then copy all of it into one contiguous buffer.
-    if ($#$bufvec > 0 || $bufvec->[0]{flags} & &Fuse::FUSE_BUF_IS_FD()) {
+    if ($#$bufvec > 0 || $bufvec->[0]{flags} & &Filesys::Fuse3::FUSE_BUF_IS_FD()) {
         my $single = [ {
                 flags   => 0,
                 fd      => -1,
                 mem     => undef,
                 pos     => 0,
-                size    => Fuse::fuse_buf_size($bufvec),
+                size    => Filesys::Fuse3::fuse_buf_size($bufvec),
         } ];
-        Fuse::fuse_buf_copy($single, $bufvec);
+        Filesys::Fuse3::fuse_buf_copy($single, $bufvec);
         $bufvec = $single;
     }
     if($rv = seek(FILE,$off,SEEK_SET)) {
@@ -317,7 +317,7 @@ if (! -d $mountpoint) {
 
 daemonize();
 
-Fuse::main(
+Filesys::Fuse3::main(
     'mountpoint'    => $mountpoint,
     'getattr'       => 'main::x_getattr',
     'readlink'      => 'main::x_readlink',
