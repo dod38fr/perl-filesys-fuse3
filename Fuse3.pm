@@ -417,16 +417,6 @@ This is called when dereferencing symbolic links, to learn the target.
 
 example rv: return "/proc/self/fd/stdin";
 
-=head3 getdir
-
-Arguments:  Containing directory name.
-
-Returns a list: 0 or more text strings (the filenames), followed by a numeric errno (usually 0).
-
-This is used to obtain directory listings.  It's opendir(), readdir(), filldir() and closedir() all in one call.
-
-example rv: return ('.', 'a', 'b', 0);
-
 =head3 mknod
 
 Arguments:  Filename, numeric modes, numeric device
@@ -715,24 +705,6 @@ Returns errno or 0 on success, and (optional) file handle.
 Create a file with the path indicated, then open a handle for reading and/or
 writing with the supplied mode flags. Can also return a file handle like
 open() as part of the call.
-
-=head3 ftruncate
-
-Arguments: Pathname, numeric offset, (optional) file handle
-
-Returns errno or 0 on success
-
-Like truncate(), but on an opened file.
-
-=head3 fgetattr
-
-Arguments: Pathname, (optional) file handle
-
-Returns a list, very similar to the 'stat' function (see
-perlfunc).  On error, simply return a single numeric scalar
-value (e.g. "return -ENOENT();").
-
-Like getattr(), but on an opened file.
 
 =head3 lock
 
