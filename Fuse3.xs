@@ -112,8 +112,6 @@ enum arg_index {
   N_FLAGS
 };
 
-#define MY_CXT_KEY "Fuse::_guts" XS_VERSION
-
 typedef struct {
 	SV *callback[N_CALLBACKS];
 	HV *handles;
