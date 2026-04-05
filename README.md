@@ -14,7 +14,7 @@ kernel/lib interface.
       debug      => 1,
 
       getattr    => sub { ... }, # fetches attributes, like 'stat'
-      getdir     => sub { ... }, # obtains directory listings
+      readdir    => sub { ... }, # obtains directory listings
       open       => sub { ... }, # opens files
       statfs     => sub { ... }, # returns filesystem data
       read       => sub { ... }, # reads file contents
@@ -29,12 +29,11 @@ for more details.
 #### Installation ####
 
 This module requires the FUSE C library and the FUSE kernel module,
-both available at http://fuse.sourceforge.net. It should work with
-versions 2.6 and up.
+both available at http://fuse.sourceforge.net.
 
 There are pre-built packages for FUSE in major operating systems:
 
-**Debian:** `sudo apt-get install libfuse-dev`
+**Debian:** `sudo apt-get install libfuse3-dev`
 
 **RedHat:** `sudo yum install fuse-devel`
 
