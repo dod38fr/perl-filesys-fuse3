@@ -208,7 +208,10 @@ cpan:
 	make disttest
 	@echo
 	@echo -n "Upload" Filesys-Fuse3-*.tar.gz "to CPAN? [y/N]:"
-	@read upload && test "$$upload" == "y" && cpan-upload -verbose Filesys-Fuse3-*.tar.gz
+	@read upload; \
+	if [ "$$upload" = "y" ] ; then \
+		cpan-upload -verbose Filesys-Fuse3-*.tar.gz; \
+	fi
 
 MAKE_MORE
 };
