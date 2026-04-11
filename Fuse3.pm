@@ -513,8 +513,9 @@ and O_SYNC, constants you can import from POSIX), fileinfo hash reference.
 
 Returns an errno, a file handle (optional).
 
-No creation, or truncation flags (O_CREAT, O_EXCL, O_TRUNC) will be passed to open().
-The fileinfo hash reference contains flags from the B<fuse> open call which may be modified by the module. The only fields presently supported are:
+The fileinfo hash reference contains information from the B<fuse> C<open()> call which may be modified by the module.
+
+The only fileinfo fields presently supported are:
  direct_io (version 2.4 onwards)
  keep_cache (version 2.4 onwards)
  nonseekable (version 2.8 onwards)
