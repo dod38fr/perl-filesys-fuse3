@@ -93,7 +93,7 @@ unless ($fusever) {
     my $explanation;
     if ($^O eq 'linux') {
         if (-e '/etc/debian_version') {
-            $explanation = 'You need to install "libfuse-dev" to provide build support for this module';
+            $explanation = 'You need to install "libfuse3-dev" to provide build support for this module';
         }
         elsif (-e '/etc/redhat-release') {
             $explanation = 'You need to install "fuse-devel" to provide build support for this module';
