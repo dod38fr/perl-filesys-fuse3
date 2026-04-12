@@ -184,8 +184,8 @@ WriteMakefile(
     META_MERGE => {
         resources => {
             license => 'http://www.gnu.org/licenses/lgpl-2.1.html',
-            bugtracker => 'http://github.com/dod38fr/perl-fuse3/issues',
-            repository => 'http://github.com/dod38fr/perl-fuse3'
+            bugtracker => 'http://github.com/dod38fr/perl-filesys-fuse3/issues',
+            repository => 'http://github.com/dod38fr/perl-filesys-fuse3'
         },
     },
     'LIBS'          => $libs, # e.g., '-lm'
