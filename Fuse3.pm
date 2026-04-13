@@ -225,7 +225,7 @@ module.
 
 At present, it allows the specification of the allow_other
 argument when mounting the new FUSE filesystem. To use this, you will also
-need 'user_allow_other' in /etc/fuse.conf as per the FUSE documention
+need 'user_allow_other' in /etc/fuse.conf as per the FUSE documentation
 
   mountopts => "allow_other" or
   mountopts => ""
